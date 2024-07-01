@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ecn_mpc</name>
+  <version>1.0.0</version>
+  <description>Model-predictive control lab</description>
+  <maintainer email="olivier.kermorgant@ec.nantes.fr">Olivier Kermorgant</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <depend>simple_launch</depend>
+  <depend>slider_publisher</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
