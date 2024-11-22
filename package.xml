@@ -7,8 +7,11 @@
   <maintainer email="olivier.kermorgant@ec.nantes.fr">Olivier Kermorgant</maintainer>
   <license>MIT</license>
 
-  <buildtool_depend>ament_cmake_python</buildtool_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <depend>rclcpp</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
   <depend>simple_launch</depend>
   <depend>slider_publisher</depend>
 
