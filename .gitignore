@@ -71,3 +71,8 @@ Thumbs.db
 *.tex.backup
 
 !.gitignore
+
+# acados
+c_generated_code/
+*.json
+

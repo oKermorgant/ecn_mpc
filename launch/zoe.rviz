@@ -100,6 +100,8 @@ Visualization Manager:
       Visual Enabled: true
     - Class: rviz_default_plugins/TF
       Enabled: true
+      Filter (blacklist): ""
+      Filter (whitelist): ""
       Frame Timeout: 15
       Frames:
         All Enabled: true
@@ -147,6 +149,8 @@ Visualization Manager:
       Update Interval: 0
       Value: true
     - Alpha: 0.699999988079071
+      Binary representation: false
+      Binary threshold: 100
       Class: rviz_default_plugins/Map
       Color Scheme: map
       Draw Behind: false
@@ -168,6 +172,8 @@ Visualization Manager:
       Use Timestamp: false
       Value: true
     - Alpha: 0.699999988079071
+      Binary representation: false
+      Binary threshold: 100
       Class: rviz_default_plugins/Map
       Color Scheme: map
       Draw Behind: false
@@ -193,7 +199,7 @@ Visualization Manager:
       Class: rviz_default_plugins/Path
       Color: 240; 152; 0
       Enabled: true
-      Head Diameter: 0.30000001192092896
+      Head Diameter: 0.20000000298023224
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
       Line Style: Billboards
@@ -203,11 +209,11 @@ Visualization Manager:
         X: 0
         Y: 0
         Z: 0
-      Pose Color: 255; 85; 255
-      Pose Style: None
+      Pose Color: 0; 85; 255
+      Pose Style: Arrows
       Radius: 0.029999999329447746
       Shaft Diameter: 0.10000000149011612
-      Shaft Length: 0.10000000149011612
+      Shaft Length: 0.30000001192092896
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -262,25 +268,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 125.06571960449219
+      Distance: 320.2618408203125
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 176.96694946289062
-        Y: 86.6653823852539
-        Z: -17.92682647705078
+        X: 199.6676788330078
+        Y: 179.92530822753906
+        Z: -102.62925720214844
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6553985476493835
+      Pitch: 0.8797969818115234
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.113558769226074
+      Yaw: 4.930393218994141
     Saved: ~
 Window Geometry:
   Displays:

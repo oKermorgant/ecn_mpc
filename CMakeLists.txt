@@ -11,8 +11,6 @@ install(PROGRAMS ${scripts} DESTINATION lib/${PROJECT_NAME})
 file(GLOB scripts src/*.py)
 install(PROGRAMS ${scripts} DESTINATION lib/${PROJECT_NAME})
 
-ament_auto_add_executable(acados_test src/acados.cpp)
-
 ament_python_install_package(${PROJECT_NAME})
 
 ament_auto_package()
