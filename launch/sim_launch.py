@@ -5,8 +5,11 @@ from nav2_common.launch import RewrittenYaml
 def generate_launch_description():
 
     sl = SimpleLauncher()
+    manual = sl.declare_arg('manual', False)
 
-    sl.include('zoe', 'sim_ecn_launch.py', launch_arguments={'display': False, 'rviz': False})
+    sl.include('zoe', 'sim_ecn_launch.py',
+               launch_arguments={'display': False, 'rviz': False, 'manual': manual})
+
     sl.rviz(sl.find('ecn_mpc', 'zoe.rviz'))
 
     nav2_params = sl.find('ecn_mpc', 'nav2.yaml')

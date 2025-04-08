@@ -7,6 +7,7 @@ import sys
 
 varying = '-v' in sys.argv
 
+
 def as_array(l, dim):
     return np.array(l).reshape(-1,dim).T
 
