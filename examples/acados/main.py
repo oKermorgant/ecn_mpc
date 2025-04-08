@@ -2,7 +2,6 @@
 from acados_template import AcadosOcp, AcadosOcpSolver, AcadosSimSolver, AcadosModel
 import numpy as np
 import scipy.linalg
-from utils import plot_robot
 from time import time
 import sys
 from casadi import SX, vertcat, sin, cos
@@ -14,16 +13,19 @@ build = '-b' in sys.argv or generate
 varying = '-v' in sys.argv
 
 
-def phi_ref(t):
+def phi_ref(t, include_u = True):
     # [x,y,x_d,y_d,th,th_d, u]
+    idx_max = 5 if include_u else 3
     if varying:
-        return np.array([np.cos(t), np.sin(t), 0, 0, 0, 0, 0])
-    return np.array([1,2,0, np.pi, 0, 0, 0])
+        return np.array([np.cos(t), np.sin(t), 0, 0, 0])[:idx_max]
+    return np.array([1,2,np.pi, 0, 0])[:idx_max]
 
 
-X0 = np.array([0.0, 0.0, 0.0, 0.0, 0.0])  # Initial state
-F_max = 10  # Define the max force allowed
+X0 = np.array([1, 1, -1])  # Initial state
+v_max = 3.  # Define the max linear velocity
+w_max = 1.  # Define the max angular velocity
 T_horizon = 2.0  # Define the prediction horizon
+N_horizon = 10  # Define the number of discretization steps
 
 
 def export_robot_model() -> AcadosModel:
@@ -32,27 +34,23 @@ def export_robot_model() -> AcadosModel:
     # set up states & controls
     x = SX.sym("x")
     y = SX.sym("y")
-    v = SX.sym("x_d")
     theta = SX.sym("theta")
-    theta_d = SX.sym("theta_d")
 
-    x = vertcat(x, y, v, theta, theta_d)
+    x = vertcat(x, y, theta)
 
-    F = SX.sym("F")
-    T = SX.sym("T")
-    u = vertcat(F, T)
+    v = SX.sym("v")
+    w = SX.sym("w")
+    u = vertcat(v, w)
 
     # xdot
     x_dot = SX.sym("x_dot")
     y_dot = SX.sym("y_dot")
-    v_dot = SX.sym("v_dot")
     theta_dot = SX.sym("theta_dot")
-    theta_ddot = SX.sym("theta_ddot")
 
-    xdot = vertcat(x_dot, y_dot, v_dot, theta_dot, theta_ddot)
+    xdot = vertcat(x_dot, y_dot, theta_dot)
 
     # dynamics
-    f_expl = vertcat(v * cos(theta), v * sin(theta), F, theta_d, T)
+    f_expl = vertcat(v * cos(theta), v * sin(theta), w)
 
     f_impl = xdot - f_expl
 
@@ -66,8 +64,8 @@ def export_robot_model() -> AcadosModel:
     model.name = model_name
 
     model.t_label = "$t$ [s]"
-    model.x_labels = ["$x$", "$y$", "$v$", "$\\theta$", "$\\omega$"]
-    model.u_labels = ["$F$", "$T$"]
+    model.x_labels = ["$x$", "$y$", "$\\theta$"]
+    model.u_labels = ['$v$', "$\\omega$"]
 
     return model
 
@@ -77,7 +75,7 @@ def deltatime(t0):
 
 
 def create_ocp_solver_description() -> AcadosOcp:
-    N_horizon = 10  # Define the number of discretization steps
+
 
     # create ocp object to formulate the OCP
     ocp = AcadosOcp()
@@ -91,8 +89,8 @@ def create_ocp_solver_description() -> AcadosOcp:
     ocp.dims.N = N_horizon
 
     # set cost
-    Q_mat = 2 * np.diag([1e3, 1e3, 0, 0, 0])  # [x,y,x_d,y_d,th,th_d]
-    R_mat = 2 * 5 * np.diag([1e-1, 1e-2])
+    Q_mat = np.diag([1e3, 1e3, 0])  # [x,y,x_d,th]
+    R_mat = np.diag([1e-2, 1e-2])
 
     ocp.cost.cost_type = "LINEAR_LS"
     ocp.cost.cost_type_e = "LINEAR_LS"
@@ -107,7 +105,7 @@ def create_ocp_solver_description() -> AcadosOcp:
     ocp.cost.Vx[:nx, :nx] = np.eye(nx)
 
     Vu = np.zeros((ny, nu))
-    Vu[nx : nx + nu, 0:nu] = np.eye(nu)
+    Vu[nx:(nx + nu), 0:nu] = np.eye(nu)
     ocp.cost.Vu = Vu
 
     ocp.cost.Vx_e = np.eye(nx)
@@ -116,9 +114,9 @@ def create_ocp_solver_description() -> AcadosOcp:
     ocp.cost.yref_e = np.zeros((ny_e,))
 
     # set constraints
-    ocp.constraints.lbu = np.array([-F_max])
-    ocp.constraints.ubu = np.array([+F_max])
-    ocp.constraints.idxbu = np.array([0])
+    ocp.constraints.lbu = np.array([-v_max, -w_max])
+    ocp.constraints.ubu = np.array([v_max, w_max])
+    ocp.constraints.idxbu = np.array([0,1])
 
     ocp.constraints.x0 = X0
 
@@ -141,15 +139,15 @@ ocp = create_ocp_solver_description()
 model = ocp.model
 t0 = time()
 try:
-    acados_ocp_solver = AcadosOcpSolver(ocp, generate = generate, build = build)
-    acados_integrator = AcadosSimSolver(ocp, generate = generate, build = build)
+    mpc_solver = AcadosOcpSolver(ocp, generate = generate, build = build)
+    simulator = AcadosSimSolver(ocp, generate = generate, build = build)
 except FileNotFoundError:
     print('Code not generated, doing it now')
-    acados_ocp_solver = AcadosOcpSolver(ocp)
-    acados_integrator = AcadosSimSolver(ocp)
+    mpc_solver = AcadosOcpSolver(ocp)
+    simulator = AcadosSimSolver(ocp)
 print(f'Getting generated code... {deltatime(t0)}')
 
-N_horizon = acados_ocp_solver.N
+N_horizon = mpc_solver.N
 dt = T_horizon/N_horizon
 
 # prepare simulation
@@ -164,63 +162,74 @@ simXref = np.zeros((Nsim + 1, nx))
 
 xcurrent = X0
 simX[0, :] = xcurrent
-simXref[0,:] = phi_ref(time())[:5]
+simXref[0,:] = phi_ref(0.,False)
 
-yref = np.array([1, 1, 0, 0, 0, 0, 0])
-yref_N = np.array([1, 1, 0, 0, 0])
+yref = np.array([1, 1, 0, 0, 0])
+yref_N = np.array([1, 1, 0])
 
 # initialize solver
 for stage in range(N_horizon + 1):
-    acados_ocp_solver.set(stage, "x", 0.0 * np.ones(xcurrent.shape))
+    mpc_solver.set(stage, "x", 0.0 * np.ones(xcurrent.shape))
 for stage in range(N_horizon):
-    acados_ocp_solver.set(stage, "u", np.zeros((nu,)))
+    mpc_solver.set(stage, "u", np.zeros((nu,)))
 
 # closed loop
+t_sim = 0
 for i in range(Nsim):
     # update yref
     t0 = time()
-    for j in range(N_horizon):
-        acados_ocp_solver.set(j, "yref", phi_ref(t0+(j+1)*dt))
-    acados_ocp_solver.set(N_horizon, "yref", phi_ref(t0+T_horizon)[:5])
+    for j in range(N_horizon+1):
+        mpc_solver.set(j, "yref", phi_ref(t_sim+j*dt,j < N_horizon))
+    # mpc_solver.set(N_horizon, "yref", phi_ref(t_sim+T_horizon, False))
 
     # register reference
-    simXref[i+1,:] = phi_ref(t0+dt)[:5]
+    simXref[i+1,:] = phi_ref(t_sim+dt, False)
 
     # solve ocp
 
-    simU[i, :] = acados_ocp_solver.solve_for_x0(xcurrent)
-    status = acados_ocp_solver.get_status()
+    simU[i, :] = mpc_solver.solve_for_x0(xcurrent)
+    status = mpc_solver.get_status()
     print(f'{i} / {Nsim} : {deltatime(t0)}')
 
     if status not in [0, 2]:
-        acados_ocp_solver.print_statistics()
-        plot_robot(
-            np.linspace(0, T_horizon / N_horizon * i, i + 1),
-            F_max,
-            simU[:i, :],
-            simX[: i + 1, :],
-        )
+        mpc_solver.print_statistics()
         raise Exception(
-            f"acados acados_ocp_solver returned status {status} in closed loop instance {i} with {xcurrent}"
+            f"acados mpc_solver returned status {status} in closed loop instance {i} with {xcurrent}"
         )
 
     # simulate system
-    xcurrent = acados_integrator.simulate(xcurrent, simU[i, :])
-    simX[i + 1, :] = xcurrent
+    simX[i + 1, :] = xcurrent = simulator.simulate(xcurrent, simU[i, :])
+    t_sim += dt
 
 # plot results
 plt.close('all')
-plot_robot(
-    np.linspace(0, T_horizon / N_horizon * Nsim, Nsim + 1), [F_max, None], simU, simX,
-    x_labels=model.x_labels, u_labels=model.u_labels, time_label=model.t_label
-)
+plt.ion()
+
+fig, ax = plt.subplots(2, sharex = True, figsize=(16,9))
+fig.align_ylabels()
+ax[0].set_ylabel('Position error [m]')
+ax[0].set_xlabel('time [s]')
+ax[1].set_ylabel('u [m/s,rad/s]')
+ax[1].set_xlabel('time [s]')
+
+t = np.linspace(0, dt*Nsim, Nsim + 1)
+xy = simX[:,:2].T
+xyr = simXref[:,:2].T
+
+ax[0].plot(t, (xyr-xy).T)
+ax[0].legend(model.x_labels[:2])
+ax[1].plot(t[1:],simU)
+ax[1].legend(model.u_labels)
+plt.tight_layout()
 
 # top view
 fxy,xyp = plt.subplots(1, figsize=(16,9))
-xy = simX[:,:2].T
-xyr = simXref[:,:2].T
+
 
 plt.plot(xy[0],xy[1],'C0')
 plt.plot(xyr[0],xyr[1],'C1D')
 xyp.set_aspect('equal')
 plt.tight_layout()
+
+plt.show()
+plt.waitforbuttonpress()
