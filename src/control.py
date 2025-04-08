@@ -4,6 +4,7 @@ import rclpy
 from rclpy.node import Node
 import dompc_api
 import acados_api
+from ecn_mpc.splines import Splines
 
 from ackermann_msgs.msg import AckermannDrive
 from nav_msgs.msg import Path
@@ -20,6 +21,8 @@ class Control(Node):
 
         dt = 0.1
 
+        self.splines = Splines()
+
         if self.declare_parameter('dompc', True).value:
             self.solver = dompc_api.MPC(dt)
         else:
@@ -32,12 +35,21 @@ class Control(Node):
         self.js_sub = self.create_subscription(JointState, 'joint_states', self.js_cb, 1)
         self.tf_buffer = Buffer(node=self)
         self.tf_listener = TransformListener(self.tf_buffer, self)
+        self.path_sub = self.create_subscription(Path, 'path_timed', self.path_cb, 1)
 
         self.path_pub = self.create_publisher(Path, 'local_plan', 1)
         self.path = Path()
         self.path.header.frame_id = 'map'
 
         self.create_timer(dt, self.move)
+
+    def js_cb(self, js: JointState):
+        if 'steering' not in js.name:
+            return
+        self.steering = js.position[js.name.index('steering')]
+
+    def path_cb(self, path: Path):
+        self.splines.set_path(path)
 
     def pose(self):
         now = rclpy.time.Time()
@@ -47,10 +59,6 @@ class Control(Node):
 
         return pose.translation.x, pose.translation.y, 2*atan2(pose.rotation.z,pose.rotation.w)
 
-    def js_cb(self, js: JointState):
-        if 'steering' not in js.name:
-            return
-        self.steering = js.position[js.name.index('steering')]
 
     def move(self):
 
@@ -58,6 +66,8 @@ class Control(Node):
 
         if self.steering is None or x is None:
             return
+
+        ref = self.splines.spline_from(x,y,10.)
 
         # call MPC from the current state
         u, traj = self.solver.solve([x,y,theta,self.steering])

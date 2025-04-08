@@ -8,7 +8,7 @@ from rclpy.node import Node
 import numpy as np
 import pylab as pl
 
-do_plot = False
+do_plot = True
 
 
 def toXY(p: PoseStamped):
