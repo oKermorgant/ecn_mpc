@@ -1,4 +1,4 @@
-class MPC:
+class ZoeMPC:
 
     def __init__(self, dt):
         self.dt = dt
@@ -14,4 +14,4 @@ class MPC:
             traj.append(traj[-1][:])
             traj[-1][0] += 1.
 
-        return [1.,0.], traj
+        return [0.,0.], traj

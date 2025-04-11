@@ -5,6 +5,7 @@ from rclpy.node import Node
 import dompc_api
 import acados_api
 from ecn_mpc.splines import Splines
+import numpy as np
 
 from ackermann_msgs.msg import AckermannDrive
 from nav_msgs.msg import Path
@@ -12,6 +13,8 @@ from geometry_msgs.msg import PoseStamped
 from tf2_ros import Buffer, TransformListener
 from sensor_msgs.msg import JointState
 from math import atan2, cos, sin
+
+Tmax = 5.
 
 
 class Control(Node):
@@ -24,9 +27,9 @@ class Control(Node):
         self.splines = Splines()
 
         if self.declare_parameter('dompc', True).value:
-            self.solver = dompc_api.MPC(dt)
+            self.solver = dompc_api.ZoeMPC(dt)
         else:
-            self.solver = acados_api.MPC(dt)
+            self.solver = acados_api.ZoeMPC(dt)
 
         # init plumbing
         self.cmd = AckermannDrive()
@@ -35,11 +38,15 @@ class Control(Node):
         self.js_sub = self.create_subscription(JointState, 'joint_states', self.js_cb, 1)
         self.tf_buffer = Buffer(node=self)
         self.tf_listener = TransformListener(self.tf_buffer, self)
-        self.path_sub = self.create_subscription(Path, 'path_timed', self.path_cb, 1)
+        self.path_sub = self.create_subscription(Path, 'plan_timed', self.path_cb, 1)
 
-        self.path_pub = self.create_publisher(Path, 'local_plan', 1)
-        self.path = Path()
-        self.path.header.frame_id = 'map'
+        self.spline_path_pub = self.create_publisher(Path, 'local_plan', 1)
+        self.spline_path = Path()
+        self.spline_path.header.frame_id = 'map'
+
+        self.mpc_path_pub = self.create_publisher(Path, 'predicted_plan', 1)
+        self.mpc_path = Path()
+        self.mpc_path.header.frame_id = 'map'
 
         self.create_timer(dt, self.move)
 
@@ -59,6 +66,21 @@ class Control(Node):
 
         return pose.translation.x, pose.translation.y, 2*atan2(pose.rotation.z,pose.rotation.w)
 
+    def publish_ref(self, ref):
+        '''
+        publishes output of spline fitting on Tmax horizon for reference
+        '''
+        self.spline_path.poses = []
+        self.spline_path.header.stamp = self.get_clock().now().to_msg()
+
+        for t in np.linspace(0, Tmax, 20):
+            wp = ref(t)
+            pose = PoseStamped()
+            pose.pose.position.x = wp[0]
+            pose.pose.position.y = wp[1]
+            pose.pose.position.z = 0.2
+            self.spline_path.poses.append(pose)
+        self.spline_path_pub.publish(self.spline_path)
 
     def move(self):
 
@@ -67,10 +89,14 @@ class Control(Node):
         if self.steering is None or x is None:
             return
 
-        ref = self.splines.spline_from(x,y,10.)
+        ref = self.splines.spline_from(x,y,Tmax)
+
+        if ref is None:
+            return
+        self.publish_ref(ref)
 
         # call MPC from the current state
-        u, traj = self.solver.solve([x,y,theta,self.steering])
+        u, traj = self.solver.solve([x,y,theta,self.steering], ref)
 
         self.cmd.speed = u[0]
         self.cmd.steering_angle_velocity = u[1]
@@ -78,7 +104,7 @@ class Control(Node):
         self.cmd_pub.publish(self.cmd)
 
         # also display predicted trajectory
-        self.path.poses = []
+        self.mpc_path.poses = []
         for x,y,theta,_ in traj:
             pose = PoseStamped()
             pose.pose.position.x = float(x)
@@ -86,9 +112,9 @@ class Control(Node):
             pose.pose.position.z = 0.2
             pose.pose.orientation.z = sin(theta/2.)
             pose.pose.orientation.w = cos(theta/2.)
-            self.path.poses.append(pose)
-        self.path.header.stamp = self.get_clock().now().to_msg()
-        self.path_pub.publish(self.path)
+            self.mpc_path.poses.append(pose)
+        self.mpc_path.header.stamp = self.get_clock().now().to_msg()
+        self.mpc_path_pub.publish(self.mpc_path)
 
 
 rclpy.init()

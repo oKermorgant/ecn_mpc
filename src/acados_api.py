@@ -1,4 +1,4 @@
-class MPC:
+class ZoeMPC:
 
     def __init__(self, dt):
         self.dt = dt
