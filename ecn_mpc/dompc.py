@@ -35,6 +35,30 @@ class Model:
         self.u_lower = [-inf for _ in range(u_dim)]
         self.u_upper = [inf for _ in range(u_dim)]
 
+    def set_xbound(self, label, lower = None, upper = None):
+        if lower is None and upper is None:
+            return
+        try:
+            idx = self.x_names.index(label)
+            if lower is not None:
+                self.x_lower[idx] = lower
+            if upper is not None:
+                self.x_upper[idx] = upper
+        except ValueError:
+            raise ValueError(f'dompc.Model.set_xbound: {label} is not a valid state component')
+
+    def set_ubound(self, label, lower = None, upper = None):
+        if lower is None and upper is None:
+            return
+        try:
+            idx = self.u_names.index(label)
+            if lower is not None:
+                self.u_lower[idx] = lower
+            if upper is not None:
+                self.u_upper[idx] = upper
+        except ValueError:
+            raise ValueError(f'dompc.Model.set_ubound: {label} is not a valid control component')
+
     def xdim(self):
         return len(self.x)
 

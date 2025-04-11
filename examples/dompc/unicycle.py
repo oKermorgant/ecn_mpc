@@ -35,6 +35,9 @@ class Unicycle(Model):
         self.u_lower[0] = -3.
         self.u_upper[0] = 3.
 
+        # arbitrary bounds on x with another method
+        self.set_xbound('x', lower=-0.5)
+
 
 tp = Unicycle()
 dt = 0.1
