@@ -18,7 +18,7 @@ def generate_launch_description():
                             root_key='zoe',
                             param_rewrites = {},
                             convert_types=True)
-    remappings = {'/zoe/map': '/map', 'map': '/map', '/scan': 'scan', 'plan': 'plan_raw'}
+    remappings = {'/zoe/map': '/map', 'map': '/map', '/scan': 'scan'}
 
     with sl.group(ns = 'zoe'):
         sl.node('nav2_planner', 'planner_server', parameters = [configured_params],
@@ -28,6 +28,6 @@ def generate_launch_description():
                 parameters=[{'autostart': True,
                             'node_names': ['planner_server']}])
 
-        sl.node('ecn_mpc', 'plan2traj')
+        sl.node('ecn_mpc', 'navigator')
 
     return sl.launch_description()

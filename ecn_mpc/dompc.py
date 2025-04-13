@@ -157,13 +157,13 @@ class MPC:
 
     def setup(self, x0):
         self.mpc.setup()
-        self.mpc.x0 = x0
+        self.mpc.x0 = np.array(x0)
         self.mpc.set_initial_guess()
 
     def compute_from(self, x0, t0 = None):
         if t0 is not None:
             self.mpc._t0 = t0
-        return self.mpc.make_step(x0)
+        return self.mpc.make_step(np.array(x0))
 
     def get_prediction(self, states = None):
 

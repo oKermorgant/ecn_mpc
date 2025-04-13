@@ -38,7 +38,7 @@ class Control(Node):
         self.js_sub = self.create_subscription(JointState, 'joint_states', self.js_cb, 1)
         self.tf_buffer = Buffer(node=self)
         self.tf_listener = TransformListener(self.tf_buffer, self)
-        self.path_sub = self.create_subscription(Path, 'plan_timed', self.path_cb, 1)
+        self.path_sub = self.create_subscription(Path, 'plan', self.path_cb, 1)
 
         self.spline_path_pub = self.create_publisher(Path, 'local_plan', 1)
         self.spline_path = Path()
